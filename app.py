@@ -467,7 +467,7 @@ with st.sidebar:
         "📊 Dataset Word & Phrase Analytics",
         "📷 Image Quality Analytics",
         "📋 Dataset Statistics",
-        "📝 Caption Tools",
+        "✏️ Caption Tools",
         "🧠 AI Assistance",
         "💾 Captioner",
         "✂️ Image Cropper",
@@ -529,7 +529,18 @@ with st.sidebar:
             raw_items, global_phrase_counter, global_comma_counter = [], Counter(), Counter()
             if dataset_path:
                 st.warning("Please enter a valid local folder path.")
-
+                
+        # --- Store defaults in session state so all tabs can use them ---
+        if folder_valid and raw_items:
+            st.session_state.total_items = len(raw_items)
+            st.session_state.dataset_items = sorted(raw_items, key=lambda x: x['img'])
+            st.session_state.global_phrase_counter = global_phrase_counter
+            st.session_state.global_comma_counter = global_comma_counter
+        else:
+            st.session_state.total_items = 0
+            st.session_state.dataset_items = []
+            st.session_state.global_phrase_counter = Counter()
+            st.session_state.global_comma_counter = Counter()
 
         # ---- Favorites ----
         st.markdown("---")
@@ -840,7 +851,9 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
-        tab_icons = ["🖥️", "📊", "📷", "📋", "📝", "🧠", "💾", "✂️", "🔄", "📐", "📝", "🏷️","ℹ️", "🚀", "✨", "📜", "📰", "🎨", "✍️", "📖"]
+        # Must match the exact order and count of tab_options
+
+        tab_icons = ["🖥️", "📊", "📷", "📋", "✏️", "🧠", "💾", "✂️", "🔄", "📐", "📝", "🏷️", "ℹ️", "🚀", "✨", "📜", "📰", "🎨", "✍️", "📖"]
         for i, icon in enumerate(tab_icons):
             if st.button(icon, key=f"icon_tab_{i}"):
                 st.session_state.active_tab = tab_options[i]
@@ -932,7 +945,7 @@ if current_tab == "🖥️ Soho Workspace & Browser":
                 st.markdown("<div style='height: 2.5rem;'></div>", unsafe_allow_html=True)
 
                 # ---- Pagination & image count (centered) ----
-                total_pages = max(1, (total_items + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
+                total_pages = max(1, (st.session_state.total_items + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
 
                 # Row 1: "Page X of Y" (centered)
                 st.markdown(
@@ -973,7 +986,7 @@ if current_tab == "🖥️ Soho Workspace & Browser":
                 # Row 3: total image count (centered)
                 st.markdown(
                     f"<p style='font-size:1rem; color:#888; text-align:center; margin-top:0.5rem;'>"
-                    f"📷 {total_items} images</p>",
+                    f"📷 {st.session_state.total_items} images</p>",
                     unsafe_allow_html=True,
                 )
 
@@ -1053,7 +1066,7 @@ if current_tab == "🖥️ Soho Workspace & Browser":
                             with tempfile.TemporaryDirectory() as tmpdir:
                                 zip_path = os.path.join(tmpdir, "filtered_dataset.zip")
                                 with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                                    for item in dataset_items:
+                                    for item in st.session_state.dataset_items:
                                         img_full = os.path.join(st.session_state.dataset_dir, item["img"])
                                         zf.write(img_full, arcname=item["img"])
                                         if os.path.exists(item["txt_path"]):
@@ -1148,7 +1161,7 @@ elif current_tab == "📊 Dataset Word & Phrase Analytics":
         if phrase_length == "Comma-separated chunks":
             all_phrases = st.session_state.get("global_comma_counter", Counter()).most_common()
         else:
-            all_phrases = global_phrase_counter.most_common()
+            all_phrases = st.session_state.get("global_phrase_counter", Counter()).most_common()
             if phrase_length == "1 word only":
                 all_phrases = [(p, c) for p, c in all_phrases if len(p.split()) == 1]
             elif phrase_length == "2 words (e.g. 'sandy terrain')":
@@ -1395,6 +1408,23 @@ elif current_tab == "📷 Image Quality Analytics":
                         continue
                     if len(imgs) < 2:
                         continue
+
+                    # Build full paths and check existence
+                    path_a = os.path.join(dataset_path, imgs[0])
+                    path_b = os.path.join(dataset_path, imgs[1])
+                    exists_a = os.path.exists(path_a)
+                    exists_b = os.path.exists(path_b)
+
+                    # Remove missing images from metrics_map
+                    if not exists_a and imgs[0] in metrics_map:
+                        del metrics_map[imgs[0]]
+                    if not exists_b and imgs[1] in metrics_map:
+                        del metrics_map[imgs[1]]
+
+                    # Skip this pair if either image is missing
+                    if not exists_a or not exists_b:
+                        continue
+
                     met_a = metrics_map.get(imgs[0])
                     met_b = metrics_map.get(imgs[1])
                     if not met_a or not met_b:
@@ -1415,11 +1445,11 @@ elif current_tab == "📷 Image Quality Analytics":
                     with st.expander(f"🔁 {imgs[0]} vs {imgs[1]} — Recommended to keep: **{keep}**"):
                         col1, col2 = st.columns(2)
                         with col1:
-                            st.image(os.path.join(dataset_path, imgs[0]), width=200)
+                            st.image(path_a, width=200)
                             st.caption(imgs[0])
                             st.write(f"Quality: {met_a['overall_quality']:.1f}, Sharpness: {met_a['sharpness']:.2f}")
                         with col2:
-                            st.image(os.path.join(dataset_path, imgs[1]), width=200)
+                            st.image(path_b, width=200)
                             st.caption(imgs[1])
                             st.write(f"Quality: {met_b['overall_quality']:.1f}, Sharpness: {met_b['sharpness']:.2f}")
 
@@ -1433,6 +1463,7 @@ elif current_tab == "📷 Image Quality Analytics":
                                     os.remove(txt_path)
                             except Exception as e:
                                 st.error(f"Error deleting: {e}")
+                            # Update session state
                             if img_delete in st.session_state.metrics_map:
                                 del st.session_state.metrics_map[img_delete]
                             new_dup = {}
@@ -1815,11 +1846,11 @@ Please provide:
 # TAB 5: Caption Tools (Batch Quality Ratings + Validation & Auto‑Fix)
 # ======================================================================
 
-elif current_tab == "📝 Caption Tools":
+elif current_tab == "✏️ Caption Tools":
     if not folder_valid or not raw_items:
         st.info("📁 Please load a valid dataset first to use caption tools.")
     else:
-        st.header("📝 Caption Tools")
+        st.header("✏️ Caption Tools")
         st.markdown("Batch‑append quality ratings, validate captions, and auto‑fix common issues.")
 
         # ------------------------------------------------------------------
@@ -4545,7 +4576,7 @@ elif current_tab == "📖 User Guide":
          "View technical quality metrics (sharpness, noise, JPEG artifacts, resolution, aspect ratio). Detect duplicate images and use the Smart Duplicate Cleanup to keep the best copy."),
         ("📋 Dataset Statistics",
          "Interactive pie/bar charts for concepts like gender, camera, lighting, clothing, etc. Includes a caption length histogram, word cloud, quality‑concept crossover, dataset completeness, and a bias analysis prompt generator."),
-        ("📝 Caption Tools",
+        ("✏️ Caption Tools",
          "Batch‑append quality ratings to captions, and run automatic caption validation/auto‑fix (missing commas, punctuation, etc.) with a progress bar."),
         ("🧠 AI Assistance",
          "CLIP‑based hallucination checker. Compute similarity scores between images and captions, then edit, ignore, or delete flagged pairs directly from the results."),
