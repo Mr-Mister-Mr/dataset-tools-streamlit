@@ -91,7 +91,10 @@ pip install scikit-learn wordcloud streamlit-cropper pillow-avif piexif
 ```
 streamlit run app.py
 ```
-The app will open in your browser automatically.
+The app will open in your browser automatically.<br/>
+<br/>
+Bat file is provided, it activates the environment first and runs the app afterwards.
+<br/>
 
 # 💾 First‑time use
 * Enter a dataset folder path in the sidebar (or drag & drop it), then click Load.
