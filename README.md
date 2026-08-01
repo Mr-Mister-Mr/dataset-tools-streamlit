@@ -1,6 +1,6 @@
 # 📦 Dataset Caption Editor & Toolkit<br/>
 
-<img src="https://github.com/Mr-Mister-Mr/dataset-tools-streamlit/blob/main/screenshots/2026-08-01%2014_27_37-Greenshot.png?raw=true">
+<img src="https://github.com/Mr-Mister-Mr/dataset-tools-streamlit/blob/main/screenshots/2026-08-01%2014_27_37-Greenshot.png">
 
 <br/>
 A complete, offline, privacy‑first workspace for preparing image datasets for Stable Diffusion, Flux, LoRA training, and more.<br/>
